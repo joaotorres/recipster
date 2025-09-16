@@ -134,6 +134,9 @@ export default class extends Controller {
       return
     }
 
+    // Start timing the search
+    const searchStartTime = performance.now()
+
     // Show loading spinner
     this.showLoading()
 
@@ -144,10 +147,21 @@ export default class extends Controller {
       const response = await fetch(`/ingredients/match_ingredients?${params}`)
       const recipes = await response.json()
 
+      // Calculate search duration
+      const searchEndTime = performance.now()
+      const searchDuration = Math.round(searchEndTime - searchStartTime)
+
       this.hideLoading()
       this.displayRecipes(recipes)
+
+      // Log search performance
+      console.log(`🔍 Recipe search completed in ${searchDuration}ms - Found ${recipes.length} recipe${recipes.length === 1 ? '' : 's'} for ${ingredients.length} ingredient${ingredients.length === 1 ? '' : 's'}`)
     } catch (error) {
-      console.error('Recipe search error:', error)
+      // Calculate search duration even on error
+      const searchEndTime = performance.now()
+      const searchDuration = Math.round(searchEndTime - searchStartTime)
+
+      console.error(`❌ Recipe search failed after ${searchDuration}ms:`, error)
       this.hideLoading()
       this.showMessage('Error searching for recipes. Please try again.', 'error')
     }
