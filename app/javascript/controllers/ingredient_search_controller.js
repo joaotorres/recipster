@@ -146,8 +146,21 @@ export default class extends Controller {
     recipes.forEach(recipe => {
       const recipeItem = document.createElement('li')
       recipeItem.className = 'p-4 bg-gray-50 rounded-lg border'
+      
+      // Create ingredient count badges
+      const matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} matched</span>`
+      const missingBadge = `<span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full mr-2">⚠ ${recipe.missing_ingredients_count} missing</span>`
+      const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${recipe.total_ingredients_count} total</span>`
+      
       recipeItem.innerHTML = `
-        <h4 class="font-semibold text-lg mb-2">${recipe.name}</h4>
+        <div class="flex justify-between items-start mb-2">
+          <h4 class="font-semibold text-lg">${recipe.name}</h4>
+          <div class="flex flex-wrap gap-1">
+            ${matchedBadge}
+            ${missingBadge}
+            ${totalBadge}
+          </div>
+        </div>
         <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
       `
       this.recipesList.appendChild(recipeItem)
