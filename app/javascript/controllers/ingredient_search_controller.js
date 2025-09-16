@@ -9,7 +9,7 @@ export default class extends Controller {
   }
 
   setupAutocomplete() {
-    this.input = this.element
+    this.input = this.element.querySelector('input[type="search"]')
     this.ingredientsList = document.getElementById('ingredients-list')
     this.recipesList = document.getElementById('recipes-list')
     this.messagesDiv = document.getElementById('messages')
@@ -54,7 +54,7 @@ export default class extends Controller {
 
     // Create suggestions dropdown
     const dropdown = document.createElement('div')
-    dropdown.className = 'suggestions-dropdown absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto'
+    dropdown.className = 'suggestions-dropdown w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto'
 
     ingredients.forEach(ingredient => {
       const item = document.createElement('div')
@@ -72,9 +72,9 @@ export default class extends Controller {
       dropdown.appendChild(item)
     })
 
-    // Position dropdown
-    this.input.parentNode.style.position = 'relative'
-    this.input.parentNode.appendChild(dropdown)
+    // Position dropdown relative to the input field
+    const inputContainer = this.input.parentNode
+    inputContainer.appendChild(dropdown)
   }
 
   addIngredient(id, name) {
@@ -111,6 +111,17 @@ export default class extends Controller {
     this.ingredientsList.innerHTML = ''
     this.recipesList.innerHTML = ''
     this.clearMessages()
+
+    // Clear any existing autocomplete dropdown
+    const existingSuggestions = document.querySelector('.suggestions-dropdown')
+    if (existingSuggestions) {
+      existingSuggestions.remove()
+    }
+
+    // Clear the input field
+    if (this.input) {
+      this.input.value = ''
+    }
   }
 
   async searchRecipes() {
