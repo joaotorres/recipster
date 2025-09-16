@@ -23,5 +23,8 @@ module RecipsterV2
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # Set secret key base with fallback for asset precompilation
+    config.secret_key_base = ENV["SECRET_KEY_BASE"] || "dummy_key_for_asset_precompilation_only"
   end
 end
