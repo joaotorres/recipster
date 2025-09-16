@@ -129,9 +129,13 @@ export default class extends Controller {
       .map(el => el.dataset.ingredientId)
 
     if (ingredients.length === 0) {
-      this.showMessage('Please add some ingredients first!', 'error')
+      this.recipesList.innerHTML = ''
+      this.clearMessages()
       return
     }
+
+    // Show loading spinner
+    this.showLoading()
 
     try {
       const params = new URLSearchParams()
@@ -140,11 +144,28 @@ export default class extends Controller {
       const response = await fetch(`/ingredients/match_ingredients?${params}`)
       const recipes = await response.json()
 
+      this.hideLoading()
       this.displayRecipes(recipes)
     } catch (error) {
       console.error('Recipe search error:', error)
+      this.hideLoading()
       this.showMessage('Error searching for recipes. Please try again.', 'error')
     }
+  }
+
+  showLoading() {
+    this.recipesList.innerHTML = `
+      <li class="flex items-center justify-center py-8">
+        <div class="flex items-center space-x-2">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span class="text-gray-600">Searching for recipes...</span>
+        </div>
+      </li>
+    `
+  }
+
+  hideLoading() {
+    // Loading will be replaced by displayRecipes or error message
   }
 
   displayRecipes(recipes) {
