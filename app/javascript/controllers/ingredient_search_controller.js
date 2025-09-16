@@ -11,7 +11,7 @@ export default class extends Controller {
   setupAutocomplete() {
     this.input = this.element.querySelector('input[type="search"]')
     this.ingredientsList = document.getElementById('ingredients-list')
-    this.recipesList = document.getElementById('recipes-list')
+    this.recipesSection = document.getElementById('recipes-section')
     this.messagesDiv = document.getElementById('messages')
 
     // Simple debounced search
@@ -109,7 +109,7 @@ export default class extends Controller {
 
   clearIngredients() {
     this.ingredientsList.innerHTML = ''
-    this.recipesList.innerHTML = ''
+    this.recipesSection.style.display = 'none'
     this.clearMessages()
 
     // Clear any existing autocomplete dropdown
@@ -129,7 +129,7 @@ export default class extends Controller {
       .map(el => el.dataset.ingredientId)
 
     if (ingredients.length === 0) {
-      this.recipesList.innerHTML = ''
+      this.recipesSection.style.display = 'none'
       this.clearMessages()
       return
     }
@@ -154,7 +154,8 @@ export default class extends Controller {
   }
 
   showLoading() {
-    this.recipesList.innerHTML = `
+    this.recipesSection.style.display = 'block'
+    this.recipesSection.innerHTML = `
       <li class="flex items-center justify-center py-8">
         <div class="flex items-center space-x-2">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -169,17 +170,18 @@ export default class extends Controller {
   }
 
   displayRecipes(recipes) {
-    this.recipesList.innerHTML = ''
-
     if (recipes.length === 0) {
-      this.recipesList.innerHTML = '<li class="text-gray-500 italic">No recipes found with these ingredients.</li>'
+      this.recipesSection.style.display = 'none'
       return
     }
 
-    recipes.forEach(recipe => {
-      const recipeItem = document.createElement('li')
-      recipeItem.className = 'p-4 bg-gray-50 rounded-lg border'
+    // Show the recipes section and build the complete content with header
+    this.recipesSection.style.display = 'block'
 
+    // Create the header and recipes list
+    let recipesHTML = `<h3 class="text-lg font-semibold mb-2">${recipes.length} Recipe${recipes.length === 1 ? '' : 's'} Found:</h3><ul class="space-y-2">`
+
+    recipes.forEach(recipe => {
       // Create ingredient count badges
       const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">${recipe.total_ingredients_count} ingredients</span>`
 
@@ -195,19 +197,23 @@ export default class extends Controller {
         missingBadge = `<span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
       }
 
-      recipeItem.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <h4 class="font-semibold text-lg">${recipe.name}</h4>
-          <div class="flex flex-wrap gap-1">
-            ${totalBadge}
-            ${matchedBadge}
-            ${missingBadge}
+      recipesHTML += `
+        <li class="p-4 bg-gray-50 rounded-lg border">
+          <div class="flex justify-between items-start mb-2">
+            <h4 class="font-semibold text-lg">${recipe.name}</h4>
+            <div class="flex flex-wrap gap-1">
+              ${totalBadge}
+              ${matchedBadge}
+              ${missingBadge}
+            </div>
           </div>
-        </div>
-        <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
+          <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
+        </li>
       `
-      this.recipesList.appendChild(recipeItem)
     })
+
+    recipesHTML += '</ul>'
+    this.recipesSection.innerHTML = recipesHTML
   }
 
   showMessage(message, type = 'info') {
