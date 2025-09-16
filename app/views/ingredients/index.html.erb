@@ -1,0 +1,54 @@
+<div class="max-w-4xl mx-auto p-6">
+  <h1 class="text-4xl font-bold text-center mb-2">Recipster</h1>
+  <p class="text-center text-gray-600 mb-8 italic">What recipes can you cook with ingredients from your fridge?</p>
+  
+  <div class="bg-white rounded-lg shadow-lg p-6">
+    <!-- Search Input -->
+    <div class="mb-6">
+      <input 
+        type="search" 
+        placeholder="Enter ingredients..." 
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        data-controller="ingredient-search"
+        data-ingredient-search-url-value="/ingredients/search"
+      >
+    </div>
+    
+    <!-- Selected Ingredients -->
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold mb-2">Selected Ingredients:</h3>
+      <ul id="ingredients-list" class="flex flex-wrap gap-2 min-h-[50px] p-2 border border-gray-200 rounded-lg">
+        <!-- Ingredients will be added here -->
+      </ul>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex gap-4 mb-6">
+      <button 
+        id="clear-ingredients" 
+        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+      >
+        Clear All
+      </button>
+      <button 
+        id="search-recipes" 
+        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        Search Recipes
+      </button>
+    </div>
+    
+    <!-- Messages -->
+    <div id="messages" class="mb-4">
+      <!-- Messages will appear here -->
+    </div>
+    
+    <!-- Recipe Results -->
+    <div>
+      <h3 class="text-lg font-semibold mb-2">Recipes Found:</h3>
+      <ul id="recipes-list" class="space-y-2">
+        <!-- Recipe results will appear here -->
+      </ul>
+    </div>
+  </div>
+</div>
