@@ -6,6 +6,14 @@ export default class extends Controller {
   connect() {
     this.setupAutocomplete()
     this.setupEventListeners()
+    this.setupInfiniteScroll()
+
+    // Initialize pagination state
+    this.currentPage = 1
+    this.totalPages = 1
+    this.totalCount = 0
+    this.isLoading = false
+    this.allRecipes = []
   }
 
   setupAutocomplete() {
@@ -28,6 +36,19 @@ export default class extends Controller {
     // Clear ingredients button
     document.getElementById('clear-ingredients').addEventListener('click', () => {
       this.clearIngredients()
+    })
+  }
+
+  setupInfiniteScroll() {
+    // Create intersection observer for infinite scroll
+    this.observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !this.isLoading && this.currentPage < this.totalPages) {
+          this.loadMoreRecipes()
+        }
+      })
+    }, {
+      rootMargin: '100px' // Load more when 100px before reaching the bottom
     })
   }
 
@@ -131,8 +152,12 @@ export default class extends Controller {
     if (ingredients.length === 0) {
       this.recipesSection.style.display = 'none'
       this.clearMessages()
+      this.resetPagination()
       return
     }
+
+    // Reset pagination for new search
+    this.resetPagination()
 
     // Start timing the search
     const searchStartTime = performance.now()
@@ -141,21 +166,18 @@ export default class extends Controller {
     this.showLoading()
 
     try {
-      const params = new URLSearchParams()
-      ingredients.forEach(id => params.append('ingredient_ids[]', id))
-
-      const response = await fetch(`/ingredients/match_ingredients?${params}`)
-      const recipes = await response.json()
+      const response = await this.fetchRecipes(ingredients, 1)
+      const data = await response.json()
 
       // Calculate search duration
       const searchEndTime = performance.now()
       const searchDuration = Math.round(searchEndTime - searchStartTime)
 
       this.hideLoading()
-      this.displayRecipes(recipes)
+      this.displayRecipes(data.recipes, data.pagination, true)
 
       // Log search performance
-      console.log(`🔍 Recipe search completed in ${searchDuration}ms - Found ${recipes.length} recipe${recipes.length === 1 ? '' : 's'} for ${ingredients.length} ingredient${ingredients.length === 1 ? '' : 's'}`)
+      console.log(`🔍 Recipe search completed in ${searchDuration}ms - Found ${data.pagination.total_count} recipe${data.pagination.total_count === 1 ? '' : 's'} for ${ingredients.length} ingredient${ingredients.length === 1 ? '' : 's'}`)
     } catch (error) {
       // Calculate search duration even on error
       const searchEndTime = performance.now()
@@ -165,6 +187,44 @@ export default class extends Controller {
       this.hideLoading()
       this.showMessage('Error searching for recipes. Please try again.', 'error')
     }
+  }
+
+  async loadMoreRecipes() {
+    if (this.isLoading || this.currentPage >= this.totalPages) return
+
+    this.isLoading = true
+    this.currentPage++
+
+    const ingredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
+      .map(el => el.dataset.ingredientId)
+
+    try {
+      const response = await this.fetchRecipes(ingredients, this.currentPage)
+      const data = await response.json()
+
+      this.displayRecipes(data.recipes, data.pagination, false)
+    } catch (error) {
+      console.error('Error loading more recipes:', error)
+      this.currentPage-- // Revert page increment on error
+    } finally {
+      this.isLoading = false
+    }
+  }
+
+  async fetchRecipes(ingredients, page) {
+    const params = new URLSearchParams()
+    ingredients.forEach(id => params.append('ingredient_ids[]', id))
+    params.append('page', page)
+
+    return fetch(`/ingredients/match_ingredients?${params}`)
+  }
+
+  resetPagination() {
+    this.currentPage = 1
+    this.totalPages = 1
+    this.totalCount = 0
+    this.isLoading = false
+    this.allRecipes = []
   }
 
   showLoading() {
@@ -183,51 +243,104 @@ export default class extends Controller {
     // Loading will be replaced by displayRecipes or error message
   }
 
-  displayRecipes(recipes) {
-    if (recipes.length === 0) {
+  displayRecipes(recipes, pagination, isNewSearch = true) {
+    if (recipes.length === 0 && isNewSearch) {
       this.recipesSection.style.display = 'none'
       return
     }
 
-    // Show the recipes section and build the complete content with header
+    // Update pagination state
+    this.currentPage = pagination.current_page
+    this.totalPages = pagination.total_pages
+    this.totalCount = pagination.total_count
+
+    // Show the recipes section
     this.recipesSection.style.display = 'block'
 
-    // Create the header and recipes list
-    let recipesHTML = `<h3 class="text-lg font-semibold mb-2">${recipes.length} Recipe${recipes.length === 1 ? '' : 's'} Found:</h3><ul class="space-y-2">`
+    if (isNewSearch) {
+      // Reset recipes for new search
+      this.allRecipes = recipes
+      this.renderRecipes()
+    } else {
+      // Append new recipes for infinite scroll
+      this.allRecipes = [...this.allRecipes, ...recipes]
+      this.appendRecipes(recipes)
+    }
 
-    recipes.forEach(recipe => {
-      // Create ingredient count badges
-      const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">${recipe.total_ingredients_count} ingredients</span>`
+    // Setup infinite scroll observer if there are more pages
+    if (pagination.has_next_page) {
+      this.setupInfiniteScrollTrigger()
+    } else {
+      this.removeInfiniteScrollTrigger()
+    }
+  }
 
-      let matchedBadge, missingBadge
-
-      if (recipe.missing_ingredients_count === 0) {
-        // All ingredients are available - show "All in the fridge" in green
-        matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All in the fridge</span>`
-        missingBadge = '' // Don't show missing badge when there are no missing ingredients
-      } else {
-        // Some ingredients are missing - show "X in the fridge" in yellow and missing count
-        matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} in the fridge</span>`
-        missingBadge = `<span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
-      }
-
-      recipesHTML += `
-        <li class="p-4 bg-gray-50 rounded-lg border">
-          <div class="flex justify-between items-start mb-2">
-            <h4 class="font-semibold text-lg">${recipe.name}</h4>
-            <div class="flex flex-wrap gap-1">
-              ${totalBadge}
-              ${matchedBadge}
-              ${missingBadge}
-            </div>
-          </div>
-          <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
-        </li>
-      `
-    })
-
-    recipesHTML += '</ul>'
+  renderRecipes() {
+    const recipesHTML = this.buildRecipesHTML(this.allRecipes, this.totalCount)
     this.recipesSection.innerHTML = recipesHTML
+  }
+
+  appendRecipes(newRecipes) {
+    const recipesList = this.recipesSection.querySelector('ul')
+    if (recipesList) {
+      const newRecipesHTML = newRecipes.map(recipe => this.buildRecipeHTML(recipe)).join('')
+      recipesList.insertAdjacentHTML('beforeend', newRecipesHTML)
+    }
+  }
+
+  buildRecipesHTML(recipes, totalCount) {
+    const header = `<h3 class="text-lg font-semibold mb-2">${totalCount} Recipe${totalCount === 1 ? '' : 's'} Found:</h3>`
+    const recipesList = `<ul class="space-y-2">${recipes.map(recipe => this.buildRecipeHTML(recipe)).join('')}</ul>`
+    const loadMoreTrigger = this.currentPage < this.totalPages ? '<div id="load-more-trigger" class="h-10"></div>' : ''
+
+    return header + recipesList + loadMoreTrigger
+  }
+
+  buildRecipeHTML(recipe) {
+    // Create ingredient count badges
+    const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">${recipe.total_ingredients_count} ingredients</span>`
+
+    let matchedBadge, missingBadge
+
+    if (recipe.missing_ingredients_count === 0) {
+      // All ingredients are available - show "All in the fridge" in green
+      matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All in the fridge</span>`
+      missingBadge = '' // Don't show missing badge when there are no missing ingredients
+    } else {
+      // Some ingredients are missing - show "X in the fridge" in yellow and missing count
+      matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} in the fridge</span>`
+      missingBadge = `<span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
+    }
+
+    return `
+      <li class="p-4 bg-gray-50 rounded-lg border">
+        <div class="flex justify-between items-start mb-2">
+          <h4 class="font-semibold text-lg">${recipe.name}</h4>
+          <div class="flex flex-wrap gap-1">
+            ${totalBadge}
+            ${matchedBadge}
+            ${missingBadge}
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
+      </li>
+    `
+  }
+
+  setupInfiniteScrollTrigger() {
+    this.removeInfiniteScrollTrigger()
+
+    const trigger = document.getElementById('load-more-trigger')
+    if (trigger) {
+      this.observer.observe(trigger)
+    }
+  }
+
+  removeInfiniteScrollTrigger() {
+    const trigger = document.getElementById('load-more-trigger')
+    if (trigger) {
+      this.observer.unobserve(trigger)
+    }
   }
 
   showMessage(message, type = 'info') {
@@ -240,6 +353,13 @@ export default class extends Controller {
 
   clearMessages() {
     this.messagesDiv.innerHTML = ''
+  }
+
+  disconnect() {
+    // Clean up the intersection observer
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   }
 }
 

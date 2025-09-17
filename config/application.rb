@@ -26,5 +26,10 @@ module RecipsterV2
 
     # Set secret key base with fallback for asset precompilation
     config.secret_key_base = ENV["SECRET_KEY_BASE"] || "dummy_key_for_asset_precompilation_only"
+
+    # Configure Kaminari
+    config.after_initialize do
+      require "kaminari"
+    end
   end
 end
