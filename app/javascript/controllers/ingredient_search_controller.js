@@ -30,6 +30,22 @@ export default class extends Controller {
         this.searchIngredients(e.target.value)
       }, 300)
     })
+
+    // Handle Esc key to close autocomplete
+    this.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.hideSuggestions()
+        this.input.blur() // Remove focus from input
+      }
+    })
+
+    // Handle clicks outside the dropdown to close it
+    document.addEventListener('click', (e) => {
+      const dropdown = document.querySelector('.suggestions-dropdown')
+      if (dropdown && !this.input.contains(e.target) && !dropdown.contains(e.target)) {
+        this.hideSuggestions()
+      }
+    })
   }
 
   setupEventListeners() {
@@ -53,7 +69,7 @@ export default class extends Controller {
   }
 
   async searchIngredients(query) {
-    if (query.length < 2) return
+    if (query.length < 1) return
 
     try {
       const response = await fetch(`${this.urlValue}?q=${encodeURIComponent(query)}`)
@@ -96,6 +112,13 @@ export default class extends Controller {
     // Position dropdown relative to the input field
     const inputContainer = this.input.parentNode
     inputContainer.appendChild(dropdown)
+  }
+
+  hideSuggestions() {
+    const existingSuggestions = document.querySelector('.suggestions-dropdown')
+    if (existingSuggestions) {
+      existingSuggestions.remove()
+    }
   }
 
   addIngredient(id, name) {
