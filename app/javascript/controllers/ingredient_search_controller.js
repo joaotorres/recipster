@@ -128,11 +128,12 @@ export default class extends Controller {
 
     // Create ingredient chip
     const chip = document.createElement('div')
-    chip.className = 'inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm'
+    chip.className = 'inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm'
     chip.dataset.ingredientId = id
+    chip.dataset.ingredientName = name
     chip.innerHTML = `
       <span>${name}</span>
-      <button class="ml-1 text-blue-600 hover:text-blue-800" data-action="click->ingredient-search#removeIngredient">
+      <button class="ml-1 text-green-600 hover:text-green-800" data-action="click->ingredient-search#removeIngredient">
         ×
       </button>
     `
@@ -149,6 +150,49 @@ export default class extends Controller {
 
     // Automatically search for recipes when ingredient is removed
     this.searchRecipes()
+  }
+
+  removeIngredientFromRecipe(event) {
+    const ingredientId = event.target.closest('[data-ingredient-id]').dataset.ingredientId
+    const ingredientElement = this.ingredientsList.querySelector(`[data-ingredient-id="${ingredientId}"]`)
+
+    if (ingredientElement) {
+      ingredientElement.remove()
+      this.searchRecipes()
+    }
+  }
+
+  addIngredientFromRecipe(event) {
+    const ingredientName = event.target.closest('[data-ingredient-name]').dataset.ingredientName
+
+    // Check if ingredient already exists
+    const existing = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-name]'))
+      .find(el => el.dataset.ingredientName.toLowerCase() === ingredientName.toLowerCase())
+
+    if (existing) return
+
+    // We need to find the ingredient ID by searching for it
+    this.searchIngredientByName(ingredientName)
+  }
+
+  async searchIngredientByName(ingredientName) {
+    try {
+      const response = await fetch(`${this.urlValue}?q=${encodeURIComponent(ingredientName)}`)
+      const ingredients = await response.json()
+
+      // Find exact match (case insensitive)
+      const exactMatch = ingredients.find(ingredient =>
+        ingredient.name.toLowerCase() === ingredientName.toLowerCase()
+      )
+
+      if (exactMatch) {
+        this.addIngredient(exactMatch.id, exactMatch.name)
+      } else {
+        console.warn(`Ingredient "${ingredientName}" not found in search results`)
+      }
+    } catch (error) {
+      console.error('Error searching for ingredient:', error)
+    }
   }
 
   clearIngredients() {
@@ -321,19 +365,62 @@ export default class extends Controller {
 
   buildRecipeHTML(recipe) {
     // Create ingredient count badges
-    const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">${recipe.total_ingredients_count} ingredients</span>`
+    const totalBadge = `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">${recipe.total_ingredients_count} total ingredients</span>`
 
     let matchedBadge, missingBadge
 
     if (recipe.missing_ingredients_count === 0) {
-      // All ingredients are available - show "All in the fridge" in green
-      matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All in the fridge</span>`
+      // All ingredients are available - show "All at home" in green
+      matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All at home</span>`
       missingBadge = '' // Don't show missing badge when there are no missing ingredients
     } else {
-      // Some ingredients are missing - show "X in the fridge" in yellow and missing count
-      matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} in the fridge</span>`
-      missingBadge = `<span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
+      // Some ingredients are missing - show "X at home" in yellow and missing count
+      matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} at home</span>`
+      missingBadge = `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
     }
+
+    // Get the list of selected ingredients for interactive buttons
+    const selectedIngredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
+      .map(el => ({
+        id: el.dataset.ingredientId,
+        name: el.dataset.ingredientName
+      }))
+
+    // Create interactive ingredient buttons
+    const ingredientButtons = recipe.ingredients.map(ingredient => {
+      const selectedIngredient = selectedIngredients.find(sel =>
+        sel.name.toLowerCase() === ingredient.toLowerCase()
+      )
+
+      if (selectedIngredient) {
+        // Ingredient is available - show green button with remove action
+        return `
+          <button
+            class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm hover:bg-green-200 transition-colors"
+            data-action="click->ingredient-search#removeIngredientFromRecipe"
+            data-ingredient-id="${selectedIngredient.id}"
+            data-ingredient-name="${selectedIngredient.name}"
+            title="Remove ${ingredient} from selected ingredients"
+          >
+            <span>${ingredient}</span>
+            <span class="ml-1 text-green-600 hover:text-green-800">×</span>
+          </button>
+        `
+      } else {
+        // Ingredient is missing - show red button with add action
+        return `
+          <button
+            class="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm hover:bg-red-200 transition-colors"
+            data-action="click->ingredient-search#addIngredientFromRecipe"
+            data-ingredient-name="${ingredient}"
+            title="Add ${ingredient} to selected ingredients"
+          >
+            <span>${ingredient}</span>
+            <span class="ml-1 text-red-600 hover:text-red-800">+</span>
+          </button>
+        `
+      }
+    }).join('')
 
     return `
       <li class="p-4 bg-gray-50 rounded-lg border">
@@ -345,7 +432,12 @@ export default class extends Controller {
             ${missingBadge}
           </div>
         </div>
-        <p class="text-sm text-gray-600">Ingredients: ${recipe.ingredients.join(', ')}</p>
+        <div class="text-sm text-gray-600">
+          <span class="block mb-2">Ingredients:</span>
+          <div class="flex flex-wrap gap-2">
+            ${ingredientButtons}
+          </div>
+        </div>
       </li>
     `
   }
