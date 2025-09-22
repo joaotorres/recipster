@@ -76,7 +76,11 @@ class RecipeSearchService
         ingredients: recipe.ingredients.map(&:name),
         matched_ingredients_count: matched_count,
         total_ingredients_count: recipe.ingredient_count,
-        missing_ingredients_count: recipe.ingredient_count - matched_count
+        missing_ingredients_count: recipe.ingredient_count - matched_count,
+        image: recipe.image,
+        prep_time: recipe.prep_time,
+        cook_time: recipe.cook_time,
+        rating: recipe.rating
       }
     end
   end

@@ -379,6 +379,25 @@ export default class extends Controller {
       missingBadge = `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
     }
 
+    // Calculate total cooking time
+    const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0)
+    const timeDisplay = totalTime > 0 ? `${totalTime} min` : 'N/A'
+
+    // Create star rating display
+    const rating = parseFloat(recipe.rating) || 0
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0)
+
+    const starsHTML = '★'.repeat(fullStars) +
+                     (hasHalfStar ? '☆' : '') +
+                     '☆'.repeat(emptyStars)
+
+    const ratingDisplay = `<div class="flex items-center gap-1 text-sm">
+      <span class="text-yellow-500">${starsHTML}</span>
+      <span class="text-gray-600">${rating.toFixed(1)}</span>
+    </div>`
+
     // Get the list of selected ingredients for interactive buttons
     const selectedIngredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
       .map(el => ({
@@ -422,20 +441,47 @@ export default class extends Controller {
       }
     }).join('')
 
+    // Create image element
+    const imageHTML = recipe.image ?
+      `<img src="${recipe.image}" alt="${recipe.name}" class="w-24 h-24 object-cover rounded-lg flex-shrink-0">` :
+      `<div class="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>`
+
     return `
       <li class="p-4 bg-gray-50 rounded-lg border">
-        <div class="flex justify-between items-start mb-2">
-          <h4 class="font-semibold text-lg">${recipe.name}</h4>
-          <div class="flex flex-wrap gap-1">
-            ${totalBadge}
-            ${matchedBadge}
-            ${missingBadge}
+        <div class="flex gap-4">
+          <!-- Recipe Image -->
+          <div class="flex-shrink-0">
+            ${imageHTML}
           </div>
-        </div>
-        <div class="text-sm text-gray-600">
-          <span class="block mb-2">Ingredients:</span>
-          <div class="flex flex-wrap gap-2">
-            ${ingredientButtons}
+
+          <!-- Recipe Content -->
+          <div class="flex-1 min-w-0">
+            <!-- Recipe Name and Meta Info -->
+            <div class="flex justify-between items-start mb-2">
+              <h4 class="font-semibold text-lg">${recipe.name}</h4>
+              <div class="flex items-center gap-4 text-sm text-gray-600">
+                <div class="flex items-center gap-1">
+                  <span>🕒</span>
+                  <span>${timeDisplay}</span>
+                </div>
+                ${ratingDisplay}
+              </div>
+            </div>
+
+            <!-- Ingredient Badges -->
+            <div class="flex flex-wrap gap-1 mb-3">
+              ${totalBadge}
+              ${matchedBadge}
+              ${missingBadge}
+            </div>
+
+            <!-- Ingredients List -->
+            <div class="text-sm text-gray-600">
+              <span class="block mb-2">Ingredients:</span>
+              <div class="flex flex-wrap gap-2">
+                ${ingredientButtons}
+              </div>
+            </div>
           </div>
         </div>
       </li>

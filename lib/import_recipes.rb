@@ -1,3 +1,5 @@
+require "cgi"
+
 class ImportRecipes
   def self.load_recipes(file_path = nil)
     file_path ||= Rails.root.join("db", "seed_data", "recipes-en.json")
@@ -27,13 +29,39 @@ class ImportRecipes
       recipe.ingredients << ingredient unless recipe.ingredients.include?(ingredient)
     end
 
-    # Update ingredient count
-    recipe.update!(ingredient_count: recipe.ingredients.count)
+    # Update recipe with additional fields
+    recipe.update!(
+      ingredient_count: recipe.ingredients.count,
+      cook_time: recipe_data["cook_time"],
+      prep_time: recipe_data["prep_time"],
+      rating: recipe_data["ratings"],
+      category: recipe_data["category"],
+      author: recipe_data["author"],
+      image: normalize_image_url(recipe_data["image"]),
+      ingredient_list: recipe_data["ingredients"]&.join(", ")
+    )
 
     recipe
   end
 
   private
+
+  def self.normalize_image_url(raw_url)
+    return nil if raw_url.blank?
+
+    # Handle proxied URLs like:
+    # https://imagesvc.meredithcorp.io/v3/mm/image?url=https%3A%2F%2Fimages.media-allrecipes.com%2Fuserphotos%2F2298368.jpg
+    if (m = raw_url.match(%r{\Ahttps?://imagesvc\.meredithcorp\.io/v3/mm/image\?url=(.+)\z}i))
+      begin
+        return CGI.unescape(m[1])
+      rescue StandardError
+        # Fall back to original on decode failure
+        return raw_url
+      end
+    end
+
+    raw_url
+  end
 
   def self.extract_ingredients(ingredients_array)
     return [] unless ingredients_array.is_a?(Array)
