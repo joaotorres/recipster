@@ -16,8 +16,8 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
 
       result = ImportRecipes.send(:extract_ingredients, ingredients_array)
 
-      expect(result).to include('all-purpose flour', 'yellow cornmeal', 'white sugar', 'salt', 'baking powder', 'egg', 'milk', 'vegetable oil')
-      expect(result.length).to eq(8)
+      expect(result).to include('all-purpose flour', 'yellow cornmeal', 'white sugar', 'baking powder', 'egg', 'milk', 'vegetable oil')
+      expect(result.length).to eq(7)
     end
 
     it 'handles empty or invalid input' do
@@ -68,8 +68,8 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
 
       result = ImportRecipes.send(:extract_ingredients, ingredients_array)
 
-      expect(result).to include('all-purpose flour', 'wheat flour', 'baking powder', 'salt', 'packed brown sugar')
-      expect(result.length).to eq(5)
+      expect(result).to include('all-purpose flour', 'wheat flour', 'baking powder', 'packed brown sugar')
+      expect(result.length).to eq(4)
     end
 
     it 'removes descriptive words correctly' do
@@ -83,7 +83,7 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
 
       result = ImportRecipes.send(:extract_ingredients, ingredients_array)
 
-      expect(result).to include('cilantro', 'olive oil', 'chickpea', '¾ onion', 'packedfresh parsley')
+      expect(result).to include('cilantro', 'olive oil', 'chickpea', 'onion', 'packedfresh parsley')
       expect(result.length).to eq(5)
     end
 
@@ -129,11 +129,11 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
 
       expect(recipe).to be_persisted
       expect(recipe.name).to eq('Golden Sweet Cornbread')
-      expect(recipe.ingredient_count).to eq(8)
-      expect(recipe.ingredients.count).to eq(8)
+      expect(recipe.ingredient_count).to eq(7)
+      expect(recipe.ingredients.count).to eq(7)
 
       ingredient_names = recipe.ingredients.pluck(:name)
-      expect(ingredient_names).to include('all-purpose flour', 'yellow cornmeal', 'white sugar', 'salt', 'baking powder', 'egg', 'milk', 'vegetable oil')
+      expect(ingredient_names).to include('all-purpose flour', 'yellow cornmeal', 'white sugar', 'baking powder', 'egg', 'milk', 'vegetable oil')
     end
 
     it 'updates existing recipe when called again' do
@@ -147,18 +147,18 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
       recipe = ImportRecipes.process_recipe(updated_recipe_data)
 
       expect(recipe.name).to eq('Golden Sweet Cornbread')
-      expect(recipe.ingredient_count).to eq(3)
-      expect(recipe.ingredients.count).to eq(3)
+      expect(recipe.ingredient_count).to eq(2)
+      expect(recipe.ingredients.count).to eq(2)
 
       ingredient_names = recipe.ingredients.pluck(:name)
-      expect(ingredient_names).to include('flour', 'egg', 'salt')
+      expect(ingredient_names).to include('flour', 'egg')
       expect(ingredient_names).not_to include('all-purpose flour', 'yellow cornmeal', 'white sugar', 'baking powder', 'milk', 'vegetable oil')
     end
 
     it 'creates ingredient records in the database' do
       expect {
         ImportRecipes.process_recipe(sample_recipe_data)
-      }.to change(Ingredient, :count).by(8)
+      }.to change(Ingredient, :count).by(7)
 
       expect(Ingredient.where(name: 'all-purpose flour')).to exist
       expect(Ingredient.where(name: 'yellow cornmeal')).to exist
@@ -171,7 +171,7 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
 
       expect {
         ImportRecipes.process_recipe(sample_recipe_data)
-      }.to change(Ingredient, :count).by(7) # Only 7 new ingredients, all-purpose flour already exists
+      }.to change(Ingredient, :count).by(6) # Only 6 new ingredients, all-purpose flour already exists
 
       recipe = Recipe.find_by(name: 'Golden Sweet Cornbread')
       expect(recipe.ingredients).to include(existing_ingredient)
@@ -239,7 +239,7 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
       recipe = ImportRecipes.process_recipe(sausage_recipe_data)
 
       expect(recipe.name).to eq('Sausage Stir Fry with Bow Tie Pasta')
-      expect(recipe.ingredient_count).to eq(16)
+      expect(recipe.ingredient_count).to eq(15)
 
       ingredient_names = recipe.ingredients.pluck(:name)
       expect(ingredient_names).to include(
@@ -256,7 +256,6 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
         'tomato paste',
         'basil',
         'oregano',
-        'salt',
         'ground black pepper',
         'parmesan cheese'
       )
@@ -276,14 +275,13 @@ RSpec.describe ImportRecipes, 'Integration Tests', type: :model do
       recipe = ImportRecipes.process_recipe(potato_recipe_data)
 
       expect(recipe.name).to eq('Diner-Style Baked Potato Home Fries')
-      expect(recipe.ingredient_count).to eq(4)
+      expect(recipe.ingredient_count).to eq(3)
 
       ingredient_names = recipe.ingredients.pluck(:name)
       expect(ingredient_names).to include(
         'baking potato',
         'butter',
-        'onion',
-        'salt and ground black pepper to taste'
+        'onion'
       )
     end
   end

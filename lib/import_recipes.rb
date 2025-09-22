@@ -85,25 +85,27 @@ class ImportRecipes
       # Remove everything after comma (preparation instructions, quantity notes, etc.)
       .gsub(/,.*$/, "")
       # Remove numbers with space and fractions with units (like "3 ½ teaspoons")
-      .gsub(/\d+\s+[⅓⅔¼¾½]\s*(?:cup|cups|tablespoon|tablespoons|tsp|tbsp|teaspoon|teaspoons|pound|pounds|lb|lbs|ounce|ounces|oz|pint|pints|quart|quarts|gallon|gallons|gram|grams|g|kilogram|kilograms|kg|milliliter|milliliters|ml|liter|liters|l|can|cans|package|packages|bag|bags|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces|dash|pinch|handful|handfuls|cl)\s*/i, "")
+      .gsub(/\d+\s+[⅓⅔¼¾½⅛⅜⅝⅞]\s*(?:cup|cups|tablespoon|tablespoons|tsp|tbsp|teaspoon|teaspoons|pound|pounds|lb|lbs|ounce|ounces|oz|pint|pints|quart|quarts|gallon|gallons|gram|grams|g|kilogram|kilograms|kg|milliliter|milliliters|ml|liter|liters|l|can|cans|package|packages|bag|bags|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces|dash|pinch|handful|handfuls|cl)\s*/i, "")
       # Remove fractions with units (including Unicode fractions like ⅔)
-      .gsub(/(?:[⅓⅔¼¾½]|\d+\/\d+)\s*(?:cup|cups|tablespoon|tablespoons|tsp|tbsp|teaspoon|teaspoons|pound|pounds|lb|lbs|ounce|ounces|oz|pint|pints|quart|quarts|gallon|gallons|gram|grams|g|kilogram|kilograms|kg|milliliter|milliliters|ml|liter|liters|l|can|cans|package|packages|bag|bags|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces|dash|pinch|handful|handfuls|cl)\s*/i, "")
+      .gsub(/(?:[⅓⅔¼¾½⅛⅜⅝⅞]|\d+\/\d+)\s*(?:cup|cups|tablespoon|tablespoons|tsp|tbsp|teaspoon|teaspoons|pound|pounds|lb|lbs|ounce|ounces|oz|pint|pints|quart|quarts|gallon|gallons|gram|grams|g|kilogram|kilograms|kg|milliliter|milliliters|ml|liter|liters|l|can|cans|package|packages|bag|bags|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces|dash|pinch|handful|handfuls|cl)\s*/i, "")
       # Remove decimal numbers with English units (only when followed by actual units)
       .gsub(/\d+(?:\.\d+)?\s*(?:cup|cups|tablespoon|tablespoons|tsp|tbsp|teaspoon|teaspoons|pound|pounds|lb|lbs|ounce|ounces|oz|pint|pints|quart|quarts|gallon|gallons|gram|grams|g|kilogram|kilograms|kg|milliliter|milliliters|ml|liter|liters|l|can|cans|package|packages|bag|bags|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces|dash|pinch|handful|handfuls|cl)(?:\s|$)/i, "")
       # Remove any remaining numbers
       .gsub(/\d+(?:\.\d+)?\s*/i, "")
+      # Remove Unicode fractions directly before ingredient names (without units)
+      .gsub(/^[⅓⅔¼¾½⅛⅜⅝⅞]\s*/, "")
       # Remove leading English articles
       .gsub(/^\s*(?:a|an|the|some|any)\s+/i, "")
       # Remove any remaining slashes and clean up
       .gsub(/[\/\\]/, "")
       # Remove common descriptive words
-      .gsub(/\s+(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|refrigerated)\s*/i, "")
+      .gsub(/\s+(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|to taste|refrigerated)\s*/i, "")
       # Remove descriptive words at the beginning
-      .gsub(/^(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|refrigerated)\s+/i, "")
+      .gsub(/^(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|to taste|refrigerated)\s+/i, "")
       # Remove descriptive words that are attached to other words (like "choppedcilantro")
-      .gsub(/([a-z])(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|refrigerated)([a-z])/i, '\1\2')
+      .gsub(/([a-z])(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|to taste|refrigerated)([a-z])/i, '\1\2')
       # Remove descriptive words at the very beginning when attached to other words
-      .gsub(/^(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|refrigerated)([a-z])/i, '\1')
+      .gsub(/^(?:chopped|diced|sliced|minced|grated|shredded|crushed|beaten|drained|rinsed|peeled|seeded|cored|halved|quartered|cubed|julienned|finely|coarsely|fresh|dried|frozen|canned|cooked|raw|boneless|skinless|thinly|thickly|lightly|heavily|extra|optional|as needed|or to taste|to taste|refrigerated)([a-z])/i, '\1')
       # Remove size descriptors (large, medium, small, etc.) but only when they're standalone
       .gsub(/\s+(?:large|medium|small|big|tiny|whole|half|quarter)\s+(?=\w)/i, " ")
       # Remove size descriptors at the beginning
@@ -132,6 +134,12 @@ class ImportRecipes
 
     # Skip if empty or too short
     return nil if cleaned.blank? || cleaned.length < 2
+
+    # Ignore common ingredients that everyone has
+    return nil if cleaned == "water" || cleaned == "salt" || cleaned == "pepper"
+
+    # Ignore ingredients containing "salt and" (salt and pepper, salt and herbs, etc.)
+    return nil if cleaned.include?("salt and")
 
     cleaned
   end

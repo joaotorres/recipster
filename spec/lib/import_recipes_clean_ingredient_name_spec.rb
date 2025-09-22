@@ -5,14 +5,27 @@ RSpec.describe ImportRecipes, '.clean_ingredient_name' do
     it 'removes fractions and measurements correctly' do
       expect(ImportRecipes.send(:clean_ingredient_name, '1 cup all-purpose flour')).to eq('all-purpose flour')
       expect(ImportRecipes.send(:clean_ingredient_name, '⅔ cup white sugar')).to eq('white sugar')
-      expect(ImportRecipes.send(:clean_ingredient_name, '1 teaspoon salt')).to eq('salt')
+      expect(ImportRecipes.send(:clean_ingredient_name, '1 teaspoon salt')).to be_nil
       expect(ImportRecipes.send(:clean_ingredient_name, '3 ½ teaspoons baking powder')).to eq('baking powder')
+    end
+
+    it 'handles all Unicode fractions correctly' do
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅓ cup milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅔ cup sugar')).to eq('sugar')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¼ cup oil')).to eq('oil')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¾ cup flour')).to eq('flour')
+      expect(ImportRecipes.send(:clean_ingredient_name, '½ cup butter')).to eq('butter')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅛ teaspoon salt')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅜ cup water')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅝ cup milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅞ cup sugar')).to eq('sugar')
     end
 
     it 'removes descriptive words' do
       expect(ImportRecipes.send(:clean_ingredient_name, '1 cup chopped fresh cilantro')).to eq('cilantro')
       expect(ImportRecipes.send(:clean_ingredient_name, '2 tablespoons olive oil, divided')).to eq('olive oil')
       expect(ImportRecipes.send(:clean_ingredient_name, '1 (15 ounce) can chickpeas, drained and rinsed')).to eq('chickpea')
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt to taste')).to be_nil
     end
 
     it 'handles edge cases' do
@@ -80,6 +93,52 @@ RSpec.describe ImportRecipes, '.clean_ingredient_name' do
       expect(ImportRecipes.send(:clean_ingredient_name, '1 Granny Smith apple - peeled, cored and coarsely shredded')).to eq('granny smith apple -')
       expect(ImportRecipes.send(:clean_ingredient_name, '7 tablespoons unsalted butter, chilled in freezer and cut into thin slices')).to eq('unsalted butter')
       expect(ImportRecipes.send(:clean_ingredient_name, '1 (15 ounce) can diced tomatoes, drained and rinsed')).to eq('tomato')
+    end
+
+    it 'ignores common ingredients that everyone has' do
+      expect(ImportRecipes.send(:clean_ingredient_name, 'water')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '1 cup water')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '1 teaspoon salt')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '½ teaspoon pepper')).to be_nil
+    end
+
+    it 'ignores ingredients containing "salt and"' do
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt and pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt and herbs')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt and garlic')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '1 teaspoon salt and pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt and ground black pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt and pepper to taste')).to be_nil
+    end
+
+    it 'does not ignore ingredients that contain salt but not "salt and"' do
+      expect(ImportRecipes.send(:clean_ingredient_name, 'sea salt')).to eq('sea salt')
+      expect(ImportRecipes.send(:clean_ingredient_name, 'kosher salt')).to eq('kosher salt')
+      expect(ImportRecipes.send(:clean_ingredient_name, 'garlic salt')).to eq('garlic salt')
+      expect(ImportRecipes.send(:clean_ingredient_name, 'salt substitute')).to eq('salt substitute')
+    end
+
+    it 'removes Unicode fractions directly before ingredient names' do
+      expect(ImportRecipes.send(:clean_ingredient_name, '½ onion')).to eq('onion')
+      expect(ImportRecipes.send(:clean_ingredient_name, '½onion')).to eq('onion')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅓ milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅓milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¼ milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¼milk')).to eq('milk')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅔ sugar')).to eq('sugar')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅔sugar')).to eq('sugar')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¾ flour')).to eq('flour')
+      expect(ImportRecipes.send(:clean_ingredient_name, '¾flour')).to eq('flour')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅛ salt')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅛salt')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅜ water')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅜water')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅝ pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅝pepper')).to be_nil
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅞ butter')).to eq('butter')
+      expect(ImportRecipes.send(:clean_ingredient_name, '⅞butter')).to eq('butter')
     end
   end
 end
