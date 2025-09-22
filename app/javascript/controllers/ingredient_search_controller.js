@@ -239,7 +239,7 @@ export default class extends Controller {
     ingredients.forEach(id => params.append('ingredient_ids[]', id))
     params.append('page', page)
 
-    return fetch(`/ingredients/match_ingredients?${params}`)
+    return fetch(`/recipes/match_ingredients?${params}`)
   }
 
   resetPagination() {
