@@ -101,6 +101,14 @@ export default class extends Controller {
     document.getElementById('clear-ingredients').addEventListener('click', () => {
       this.clearIngredients()
     })
+
+    // Common ingredient buttons
+    document.querySelectorAll('.common-ingredient-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const ingredientName = e.currentTarget.dataset.ingredientName
+        this.addCommonIngredient(ingredientName)
+      })
+    })
   }
 
   setupFilterForm() {
@@ -323,23 +331,68 @@ export default class extends Controller {
     this.clearMessages()
     this.clearIngredientErrorMessage() // Clear any ingredient-specific error messages
 
+    // Hide the corresponding common ingredient button
+    this.hideCommonIngredient(name)
+
     // Automatically search for recipes when ingredient is added
     this.searchRecipes()
   }
 
+  async addCommonIngredient(ingredientName) {
+    try {
+      // Search for the ingredient to get its ID
+      const response = await fetch(`${this.urlValue}?q=${encodeURIComponent(ingredientName)}`)
+      const ingredients = await response.json()
+
+      // Look for an exact match (case-insensitive)
+      const exactMatch = ingredients.find(ingredient =>
+        ingredient.name.toLowerCase() === ingredientName.toLowerCase()
+      )
+
+      if (exactMatch) {
+        // Found exact match - add the ingredient
+        this.addIngredient(exactMatch.id, exactMatch.name)
+      } else {
+        // Show error message if ingredient not found
+        this.showIngredientErrorMessage(`"${ingredientName}" not found in database`)
+        setTimeout(() => {
+          this.clearIngredientErrorMessage()
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('Error adding common ingredient:', error)
+      this.showIngredientErrorMessage(`Error adding "${ingredientName}"`)
+      setTimeout(() => {
+        this.clearIngredientErrorMessage()
+      }, 3000)
+    }
+  }
+
   removeIngredient(event) {
-    event.target.closest('[data-ingredient-id]').remove()
+    const ingredientElement = event.target.closest('[data-ingredient-id]')
+    const ingredientName = ingredientElement.dataset.ingredientName
+
+    ingredientElement.remove()
+
+    // Show the corresponding common ingredient button again
+    this.showCommonIngredient(ingredientName)
 
     // Automatically search for recipes when ingredient is removed
     this.searchRecipes()
   }
 
   removeIngredientFromRecipe(event) {
-    const ingredientId = event.target.closest('[data-ingredient-id]').dataset.ingredientId
-    const ingredientElement = this.ingredientsList.querySelector(`[data-ingredient-id="${ingredientId}"]`)
+    const ingredientElement = event.target.closest('[data-ingredient-id]')
+    const ingredientId = ingredientElement.dataset.ingredientId
+    const ingredientName = ingredientElement.dataset.ingredientName
+    const selectedIngredientElement = this.ingredientsList.querySelector(`[data-ingredient-id="${ingredientId}"]`)
 
-    if (ingredientElement) {
-      ingredientElement.remove()
+    if (selectedIngredientElement) {
+      selectedIngredientElement.remove()
+
+      // Show the corresponding common ingredient button again
+      this.showCommonIngredient(ingredientName)
+
       this.searchRecipes()
     }
   }
@@ -381,6 +434,11 @@ export default class extends Controller {
     this.ingredientsList.innerHTML = ''
     this.recipesSection.style.display = 'none'
     this.clearMessages()
+
+    // Show all common ingredient buttons again
+    document.querySelectorAll('.common-ingredient-btn').forEach(button => {
+      button.style.display = 'inline-flex'
+    })
 
     // Clear any existing autocomplete dropdown
     const existingSuggestions = document.querySelector('.suggestions-dropdown')
@@ -701,6 +759,20 @@ export default class extends Controller {
     const existingError = this.input.parentNode.querySelector('.ingredient-error-message')
     if (existingError) {
       existingError.remove()
+    }
+  }
+
+  hideCommonIngredient(ingredientName) {
+    const commonButton = document.querySelector(`[data-ingredient-name="${ingredientName}"]`)
+    if (commonButton) {
+      commonButton.style.display = 'none'
+    }
+  }
+
+  showCommonIngredient(ingredientName) {
+    const commonButton = document.querySelector(`[data-ingredient-name="${ingredientName}"]`)
+    if (commonButton) {
+      commonButton.style.display = 'inline-flex'
     }
   }
 
