@@ -39,9 +39,9 @@ class RecipeSearchService
   def find_matching_recipes_with_counts
     Recipe.joins(:ingredients)
           .where(ingredients: { id: @ingredient_ids })
-          .select("recipes.id, COUNT(DISTINCT ingredients.id) AS matched_ingredients_count")
-          .group("recipes.id")
-          .order(Arel.sql("(recipes.ingredient_count - COUNT(DISTINCT ingredients.id)) ASC, COUNT(DISTINCT ingredients.id) DESC"))
+          .select("recipes.id, COUNT(DISTINCT ingredients.id) AS matched_ingredients_count, recipes.rating")
+          .group("recipes.id, recipes.rating")
+          .order(Arel.sql("(recipes.ingredient_count - COUNT(DISTINCT ingredients.id)) ASC, COUNT(DISTINCT ingredients.id) DESC, recipes.rating DESC"))
   end
 
   def apply_filters(query)
@@ -109,7 +109,8 @@ class RecipeSearchService
     paginated_recipe_data.map do |recipe|
       {
         id: recipe.id,
-        matched_count: recipe.matched_ingredients_count
+        matched_count: recipe.matched_ingredients_count,
+        rating: recipe.rating
       }
     end
   end
@@ -135,7 +136,7 @@ class RecipeSearchService
         image: recipe.image,
         prep_time: recipe.prep_time,
         cook_time: recipe.cook_time,
-        rating: recipe.rating,
+        rating: recipe_data[:rating], # Use the preserved rating from the ordered query
         category: recipe.category
       }
     end
