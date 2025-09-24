@@ -1,25 +1,52 @@
 require "rails_helper"
 
 RSpec.describe RecipeSearchService do
+  before do
+    # Clear existing data to avoid interference
+    Recipe.destroy_all
+    Ingredient.destroy_all
+  end
+
   let!(:test_salt) { Ingredient.create!(name: "test_salt_#{SecureRandom.hex(4)}") }
   let!(:test_sugar) { Ingredient.create!(name: "test_sugar_#{SecureRandom.hex(4)}") }
   let!(:test_flour) { Ingredient.create!(name: "test_flour_#{SecureRandom.hex(4)}") }
   let!(:test_butter) { Ingredient.create!(name: "test_butter_#{SecureRandom.hex(4)}") }
 
   let!(:recipe1) do
-    recipe = Recipe.create!(name: "Test Simple Cake", ingredient_count: 3)
+    recipe = Recipe.create!(
+      name: "Test Simple Cake",
+      ingredient_count: 3,
+      category: "dessert",
+      rating: 4.5,
+      prep_time: 15,
+      cook_time: 30
+    )
     recipe.ingredients << [ test_salt, test_sugar, test_flour ]
     recipe
   end
 
   let!(:recipe2) do
-    recipe = Recipe.create!(name: "Test Complex Cake", ingredient_count: 4)
+    recipe = Recipe.create!(
+      name: "Test Complex Cake",
+      ingredient_count: 4,
+      category: "dessert",
+      rating: 4.2,
+      prep_time: 20,
+      cook_time: 40
+    )
     recipe.ingredients << [ test_salt, test_sugar, test_flour, test_butter ]
     recipe
   end
 
   let!(:recipe3) do
-    recipe = Recipe.create!(name: "Test Salt Only", ingredient_count: 1)
+    recipe = Recipe.create!(
+      name: "Test Salt Only",
+      ingredient_count: 1,
+      category: "main-course",
+      rating: 3.8,
+      prep_time: 5,
+      cook_time: 15
+    )
     recipe.ingredients << test_salt
     recipe
   end
@@ -81,20 +108,42 @@ RSpec.describe RecipeSearchService do
     end
 
     context "with empty ingredient IDs" do
-      it "returns empty result" do
-        service = described_class.new([])
+      it "returns top-rated recipes when no search criteria" do
+        service = described_class.new([], {}, 1)
         result = service.call
 
-        expect(result[:recipes]).to be_empty
-        expect(result[:pagination][:total_count]).to eq(0)
+        expect(result[:recipes].length).to eq(3)
+        expect(result[:pagination][:total_count]).to eq(3)
+
+        # Should be ordered by rating (highest first)
+        expect(result[:recipes].first[:name]).to eq("Test Simple Cake") # rating: 4.5
+        expect(result[:recipes].second[:name]).to eq("Test Complex Cake") # rating: 4.2
+        expect(result[:recipes].third[:name]).to eq("Test Salt Only") # rating: 3.8
+
+        # When no ingredients are selected, matching counts should be nil
+        result[:recipes].each do |recipe|
+          expect(recipe[:matched_ingredients_count]).to be_nil
+          expect(recipe[:missing_ingredients_count]).to be_nil
+        end
       end
 
-      it "returns empty result for nil ingredient IDs" do
-        service = described_class.new(nil)
+      it "returns top-rated recipes for nil ingredient IDs" do
+        service = described_class.new(nil, {}, 1)
         result = service.call
 
-        expect(result[:recipes]).to be_empty
-        expect(result[:pagination][:total_count]).to eq(0)
+        expect(result[:recipes].length).to eq(3)
+        expect(result[:pagination][:total_count]).to eq(3)
+
+        # Should be ordered by rating (highest first)
+        expect(result[:recipes].first[:name]).to eq("Test Simple Cake") # rating: 4.5
+        expect(result[:recipes].second[:name]).to eq("Test Complex Cake") # rating: 4.2
+        expect(result[:recipes].third[:name]).to eq("Test Salt Only") # rating: 3.8
+
+        # When no ingredients are selected, matching counts should be nil
+        result[:recipes].each do |recipe|
+          expect(recipe[:matched_ingredients_count]).to be_nil
+          expect(recipe[:missing_ingredients_count]).to be_nil
+        end
       end
     end
 
@@ -108,7 +157,7 @@ RSpec.describe RecipeSearchService do
       end
 
       it "respects page size" do
-        service = described_class.new([ test_salt.id ], 1)
+        service = described_class.new([ test_salt.id ], {}, 1)
         result = service.call
 
         expect(result[:recipes].length).to eq(20) # 20 recipes per page
@@ -116,7 +165,7 @@ RSpec.describe RecipeSearchService do
       end
 
       it "handles different pages" do
-        service = described_class.new([ test_salt.id ], 2)
+        service = described_class.new([ test_salt.id ], {}, 2)
         result = service.call
 
         expect(result[:pagination][:current_page]).to eq(2)
@@ -124,7 +173,7 @@ RSpec.describe RecipeSearchService do
       end
 
       it "includes pagination metadata" do
-        service = described_class.new([ test_salt.id ], 1)
+        service = described_class.new([ test_salt.id ], {}, 1)
         result = service.call
 
         expect(result[:pagination]).to include(
@@ -140,7 +189,7 @@ RSpec.describe RecipeSearchService do
 
     context "with non-existent ingredient IDs" do
       it "returns empty result" do
-        service = described_class.new([ 999999 ])
+        service = described_class.new([ 999999 ], {}, 1)
         result = service.call
 
         expect(result[:recipes]).to be_empty
@@ -150,7 +199,7 @@ RSpec.describe RecipeSearchService do
 
     context "with mixed valid and invalid ingredient IDs" do
       it "only considers valid ingredient IDs" do
-        service = described_class.new([ test_salt.id, 999999 ])
+        service = described_class.new([ test_salt.id, 999999 ], {}, 1)
         result = service.call
 
         expect(result[:recipes].length).to eq(3)
@@ -158,29 +207,116 @@ RSpec.describe RecipeSearchService do
         expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake", "Test Salt Only")
       end
     end
+
+    context "with name filter" do
+      it "filters recipes by name" do
+        service = described_class.new([], { name: "cake" }, 1)
+        result = service.call
+
+        expect(result[:recipes].length).to eq(2)
+        recipe_names = result[:recipes].map { |r| r[:name] }
+        expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake")
+        expect(recipe_names).not_to include("Test Salt Only")
+      end
+
+      it "does not order by rating when filters are applied" do
+        service = described_class.new([], { name: "cake" }, 1)
+        result = service.call
+
+        # When filters are applied, it should not be ordered by rating
+        # The order should be the default database order
+        expect(result[:recipes].length).to eq(2)
+      end
+    end
+
+    context "with rating filter" do
+      it "filters recipes by minimum rating" do
+        service = described_class.new([], { min_rating: 4.0 }, 1)
+        result = service.call
+
+        expect(result[:recipes].length).to eq(2)
+        recipe_names = result[:recipes].map { |r| r[:name] }
+        expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake")
+        expect(recipe_names).not_to include("Test Salt Only")
+      end
+    end
+
+    context "with time filter" do
+      it "filters recipes by maximum cooking time" do
+        service = described_class.new([], { max_time: 20 }, 1)
+        result = service.call
+
+        expect(result[:recipes].length).to eq(1)
+        expect(result[:recipes].first[:name]).to eq("Test Salt Only")
+      end
+    end
+
+    context "with category filter" do
+      it "filters recipes by category" do
+        service = described_class.new([], { category: "dessert" }, 1)
+        result = service.call
+
+        expect(result[:recipes].length).to eq(2)
+        recipe_names = result[:recipes].map { |r| r[:name] }
+        expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake")
+        expect(recipe_names).not_to include("Test Salt Only")
+      end
+    end
+
+    context "with multiple filters" do
+      it "applies all filters together" do
+        service = described_class.new(
+          [ test_salt.id ],
+          {
+            name: "cake",
+            min_rating: 4.0,
+            max_time: 60,
+            category: "dessert"
+          },
+          1
+        )
+        result = service.call
+
+        expect(result[:recipes].length).to eq(2)
+        recipe_names = result[:recipes].map { |r| r[:name] }
+        expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake")
+      end
+    end
   end
 
   describe "#initialize" do
     it "handles string page parameter" do
-      service = described_class.new([ test_salt.id ], "2")
+      service = described_class.new([ test_salt.id ], {}, "2")
       expect(service.instance_variable_get(:@page)).to eq(2)
     end
 
     it "handles nil page parameter" do
-      service = described_class.new([ test_salt.id ], nil)
+      service = described_class.new([ test_salt.id ], {}, nil)
       expect(service.instance_variable_get(:@page)).to eq(1)
     end
 
     it "converts ingredient_ids to array" do
-      service = described_class.new(test_salt.id)
+      service = described_class.new(test_salt.id, {}, 1)
       expect(service.instance_variable_get(:@ingredient_ids)).to eq([ test_salt.id ])
     end
 
-    it "stores ingredient_ids and page" do
-      service = described_class.new([ test_salt.id, test_sugar.id ], 2)
+    it "stores ingredient_ids, filters, and page" do
+      filters = { name: "test", min_rating: 4.0 }
+      service = described_class.new([ test_salt.id, test_sugar.id ], filters, 2)
 
       expect(service.instance_variable_get(:@ingredient_ids)).to eq([ test_salt.id, test_sugar.id ])
+      expect(service.instance_variable_get(:@filters)).to eq(filters)
       expect(service.instance_variable_get(:@page)).to eq(2)
+    end
+
+    it "handles empty filters hash" do
+      service = described_class.new([ test_salt.id ], {}, 1)
+      expect(service.instance_variable_get(:@filters)).to eq({})
+    end
+
+    it "handles nil filters" do
+      service = described_class.new([ test_salt.id ], nil, 1)
+      expect(service.instance_variable_get(:@filters)).to eq({})
     end
   end
 end

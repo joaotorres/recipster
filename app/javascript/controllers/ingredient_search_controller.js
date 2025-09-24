@@ -7,6 +7,7 @@ export default class extends Controller {
     this.setupAutocomplete()
     this.setupEventListeners()
     this.setupInfiniteScroll()
+    this.setupFilterForm()
 
     // Initialize pagination state
     this.currentPage = 1
@@ -14,6 +15,9 @@ export default class extends Controller {
     this.totalCount = 0
     this.isLoading = false
     this.allRecipes = []
+
+    // Load top recipes on page load
+    this.loadTopRecipes()
   }
 
   setupAutocomplete() {
@@ -53,6 +57,57 @@ export default class extends Controller {
     document.getElementById('clear-ingredients').addEventListener('click', () => {
       this.clearIngredients()
     })
+  }
+
+  setupFilterForm() {
+    // Apply filters button
+    const applyFiltersBtn = document.getElementById('apply-filters')
+    if (applyFiltersBtn) {
+      applyFiltersBtn.addEventListener('click', () => {
+        this.applyFilters()
+      })
+    }
+
+    // Auto-apply filters when radio buttons change
+    const radioButtons = document.querySelectorAll('input[type="radio"]')
+    radioButtons.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.applyFilters()
+      })
+    })
+
+    // Auto-apply filters when select changes
+    const selectElement = document.querySelector('select')
+    if (selectElement) {
+      selectElement.addEventListener('change', () => {
+        this.applyFilters()
+      })
+    }
+
+    // Setup recipe search form
+    this.setupRecipeSearchForm()
+  }
+
+  setupRecipeSearchForm() {
+    const searchForm = document.getElementById('recipe-search-form')
+    const searchInput = document.getElementById('recipe-name-search')
+
+    if (searchForm && searchInput) {
+      // Handle form submission
+      searchForm.addEventListener('submit', (e) => {
+        e.preventDefault()
+        this.applyFilters()
+      })
+
+      // Auto-search as user types (with debounce)
+      let searchTimeout = null
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout)
+        searchTimeout = setTimeout(() => {
+          this.applyFilters()
+        }, 500) // 500ms debounce
+      })
+    }
   }
 
   setupInfiniteScroll() {
@@ -213,47 +268,8 @@ export default class extends Controller {
   }
 
   async searchRecipes() {
-    const ingredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
-      .map(el => el.dataset.ingredientId)
-
-    if (ingredients.length === 0) {
-      this.recipesSection.style.display = 'none'
-      this.clearMessages()
-      this.resetPagination()
-      return
-    }
-
-    // Reset pagination for new search
-    this.resetPagination()
-
-    // Start timing the search
-    const searchStartTime = performance.now()
-
-    // Show loading spinner
-    this.showLoading()
-
-    try {
-      const response = await this.fetchRecipes(ingredients, 1)
-      const data = await response.json()
-
-      // Calculate search duration
-      const searchEndTime = performance.now()
-      const searchDuration = Math.round(searchEndTime - searchStartTime)
-
-      this.hideLoading()
-      this.displayRecipes(data.recipes, data.pagination, true)
-
-      // Log search performance
-      console.log(`🔍 Recipe search completed in ${searchDuration}ms - Found ${data.pagination.total_count} recipe${data.pagination.total_count === 1 ? '' : 's'} for ${ingredients.length} ingredient${ingredients.length === 1 ? '' : 's'}`)
-    } catch (error) {
-      // Calculate search duration even on error
-      const searchEndTime = performance.now()
-      const searchDuration = Math.round(searchEndTime - searchStartTime)
-
-      console.error(`❌ Recipe search failed after ${searchDuration}ms:`, error)
-      this.hideLoading()
-      this.showMessage('Error searching for recipes. Please try again.', 'error')
-    }
+    // When ingredients are added/removed, apply all current filters
+    this.applyFilters()
   }
 
   async loadMoreRecipes() {
@@ -265,8 +281,23 @@ export default class extends Controller {
     const ingredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
       .map(el => el.dataset.ingredientId)
 
+    const filters = this.getFilterValues()
+
     try {
-      const response = await this.fetchRecipes(ingredients, this.currentPage)
+      const params = new URLSearchParams()
+
+      // Add ingredient IDs
+      ingredients.forEach(id => params.append('ingredient_ids[]', id))
+
+      // Add filter values
+      if (filters.name) params.append('name', filters.name)
+      if (filters.max_time) params.append('max_time', filters.max_time)
+      if (filters.min_rating) params.append('min_rating', filters.min_rating)
+      if (filters.category) params.append('category', filters.category)
+
+      params.append('page', this.currentPage)
+
+      const response = await fetch(`/recipes/search?${params.toString()}`)
       const data = await response.json()
 
       this.displayRecipes(data.recipes, data.pagination, false)
@@ -278,13 +309,6 @@ export default class extends Controller {
     }
   }
 
-  async fetchRecipes(ingredients, page) {
-    const params = new URLSearchParams()
-    ingredients.forEach(id => params.append('ingredient_ids[]', id))
-    params.append('page', page)
-
-    return fetch(`/recipes/match_ingredients?${params}`)
-  }
 
   resetPagination() {
     this.currentPage = 1
@@ -356,7 +380,16 @@ export default class extends Controller {
   }
 
   buildRecipesHTML(recipes, totalCount) {
-    const header = `<h3 class="text-lg font-semibold mb-2">${totalCount} Recipe${totalCount === 1 ? '' : 's'} Found:</h3>`
+    // Check if we have any search criteria
+    const hasSearchCriteria = this.hasSearchCriteria()
+
+    let header
+    if (hasSearchCriteria) {
+      header = `<h3 class="text-lg font-semibold mb-2">${totalCount} Recipe${totalCount === 1 ? '' : 's'} Found:</h3>`
+    } else {
+      header = `<h3 class="text-lg font-semibold mb-2">Top Recipes:</h3>`
+    }
+
     const recipesList = `<ul class="space-y-2">${recipes.map(recipe => this.buildRecipeHTML(recipe)).join('')}</ul>`
     const loadMoreTrigger = this.currentPage < this.totalPages ? '<div id="load-more-trigger" class="h-10"></div>' : ''
 
@@ -369,14 +402,21 @@ export default class extends Controller {
 
     let matchedBadge, missingBadge
 
-    if (recipe.missing_ingredients_count === 0) {
-      // All ingredients are available - show "All at home" in green
-      matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All at home</span>`
-      missingBadge = '' // Don't show missing badge when there are no missing ingredients
+    // Check if ingredient matching data is available (when ingredients are selected)
+    if (recipe.matched_ingredients_count !== null && recipe.missing_ingredients_count !== null) {
+      if (recipe.missing_ingredients_count === 0) {
+        // All ingredients are available - show "All at home" in green
+        matchedBadge = `<span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">✓ All at home</span>`
+        missingBadge = '' // Don't show missing badge when there are no missing ingredients
+      } else {
+        // Some ingredients are missing - show "X at home" in yellow and missing count
+        matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} at home</span>`
+        missingBadge = `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
+      }
     } else {
-      // Some ingredients are missing - show "X at home" in yellow and missing count
-      matchedBadge = `<span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-2">✓ ${recipe.matched_ingredients_count} at home</span>`
-      missingBadge = `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.missing_ingredients_count} missing</span>`
+      // No ingredients selected - show all ingredients as missing
+      matchedBadge = ''
+      missingBadge = `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">⚠ ${recipe.total_ingredients_count} missing</span>`
     }
 
     // Calculate total cooking time
@@ -514,6 +554,107 @@ export default class extends Controller {
 
   clearMessages() {
     this.messagesDiv.innerHTML = ''
+  }
+
+  getFilterValues() {
+    const cookingTime = document.querySelector('input[name="cooking-time"]:checked')?.value || ''
+    const rating = document.querySelector('input[name="rating"]:checked')?.value || ''
+    const category = document.querySelector('select')?.value || ''
+    const name = document.getElementById('recipe-name-search')?.value || ''
+
+    return {
+      name: name,
+      max_time: cookingTime,
+      min_rating: rating,
+      category: category
+    }
+  }
+
+  hasSearchCriteria() {
+    const ingredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
+    const filters = this.getFilterValues()
+
+    return ingredients.length > 0 || Object.values(filters).some(value => value !== '')
+  }
+
+  async loadTopRecipes() {
+    // Reset pagination for initial load
+    this.resetPagination()
+
+    // Show loading spinner
+    this.showLoading()
+
+    try {
+      // Fetch top recipes (no search criteria)
+      const response = await fetch('/recipes/search?page=1')
+      const data = await response.json()
+
+      this.hideLoading()
+      this.displayRecipes(data.recipes, data.pagination, true)
+
+      console.log(`🔍 Top recipes loaded - Found ${data.pagination.total_count} recipe${data.pagination.total_count === 1 ? '' : 's'}`)
+    } catch (error) {
+      console.error('❌ Error loading top recipes:', error)
+      this.hideLoading()
+      this.showMessage('Error loading recipes. Please try again.', 'error')
+    }
+  }
+
+  async applyFilters() {
+    const ingredients = Array.from(this.ingredientsList.querySelectorAll('[data-ingredient-id]'))
+      .map(el => el.dataset.ingredientId)
+
+    const filters = this.getFilterValues()
+    const hasFilters = Object.values(filters).some(value => value !== '') || ingredients.length > 0
+
+    // Always show recipes - either filtered results or top recipes
+    // No need to hide the section when no filters are applied
+
+    // Reset pagination for new search
+    this.resetPagination()
+
+    // Start timing the search
+    const searchStartTime = performance.now()
+
+    // Show loading spinner
+    this.showLoading()
+
+    try {
+      const params = new URLSearchParams()
+
+      // Add ingredient IDs
+      ingredients.forEach(id => params.append('ingredient_ids[]', id))
+
+      // Add filter values
+      if (filters.name) params.append('name', filters.name)
+      if (filters.max_time) params.append('max_time', filters.max_time)
+      if (filters.min_rating) params.append('min_rating', filters.min_rating)
+      if (filters.category) params.append('category', filters.category)
+
+      params.append('page', '1')
+
+      const response = await fetch(`/recipes/search?${params.toString()}`)
+      const data = await response.json()
+
+      // Calculate search duration
+      const searchEndTime = performance.now()
+      const searchDuration = Math.round(searchEndTime - searchStartTime)
+
+      this.hideLoading()
+      this.displayRecipes(data.recipes, data.pagination, true)
+
+      // Log search performance
+      const filterText = hasFilters ? ' with filters' : ''
+      console.log(`🔍 Recipe search${filterText} completed in ${searchDuration}ms - Found ${data.pagination.total_count} recipe${data.pagination.total_count === 1 ? '' : 's'}`)
+    } catch (error) {
+      // Calculate search duration even on error
+      const searchEndTime = performance.now()
+      const searchDuration = Math.round(searchEndTime - searchStartTime)
+
+      console.error(`❌ Recipe search failed after ${searchDuration}ms:`, error)
+      this.hideLoading()
+      this.showMessage('Error searching for recipes. Please try again.', 'error')
+    }
   }
 
   disconnect() {

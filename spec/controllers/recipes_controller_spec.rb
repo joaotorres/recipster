@@ -7,7 +7,7 @@ RSpec.describe RecipesController, type: :controller do
 
   let!(:recipe) do
     recipe = Recipe.create!(name: "Test Cake", ingredient_count: 3)
-    recipe.ingredients << [salt, sugar, flour]
+    recipe.ingredients << [ salt, sugar, flour ]
     recipe
   end
 
@@ -18,95 +18,153 @@ RSpec.describe RecipesController, type: :controller do
     end
   end
 
-  describe "GET #match_ingredients" do
+  describe "GET #search" do
     context "with valid parameters" do
       it "returns successful response" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id] }, format: :json
+        get :search, params: { ingredient_ids: [ salt.id ] }, format: :json
         expect(response).to have_http_status(:success)
       end
 
       it "returns JSON format" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id] }, format: :json
+        get :search, params: { ingredient_ids: [ salt.id ] }, format: :json
         expect(response.content_type).to include("application/json")
       end
 
       it "returns recipes and pagination data" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id] }, format: :json
+        get :search, params: { ingredient_ids: [ salt.id ] }, format: :json
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response).to have_key("recipes")
         expect(json_response).to have_key("pagination")
         expect(json_response["recipes"]).to be_an(Array)
       end
 
-      it "uses RecipeSearchService" do
-        expect(RecipeSearchService).to receive(:new).with([salt.id], 1).and_call_original
-        get :match_ingredients, params: { ingredient_ids: [salt.id] }, format: :json
+      it "uses RecipeSearchService with filters" do
+        expect(RecipeSearchService).to receive(:new).with([ salt.id ], {}, 1).and_call_original
+        get :search, params: { ingredient_ids: [ salt.id ] }, format: :json
       end
 
       it "passes page parameter to service" do
-        expect(RecipeSearchService).to receive(:new).with([salt.id], 2).and_call_original
-        get :match_ingredients, params: { ingredient_ids: [salt.id], page: "2" }, format: :json
+        expect(RecipeSearchService).to receive(:new).with([ salt.id ], {}, 2).and_call_original
+        get :search, params: { ingredient_ids: [ salt.id ], page: "2" }, format: :json
+      end
+    end
+
+    context "with name filter" do
+      it "applies name filter" do
+        get :search, params: { name: "cake" }, format: :json
+        json_response = JSON.parse(response.body)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
+      end
+    end
+
+    context "with rating filter" do
+      it "applies rating filter" do
+        get :search, params: { min_rating: 4.0 }, format: :json
+        json_response = JSON.parse(response.body)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
+      end
+    end
+
+    context "with time filter" do
+      it "applies time filter" do
+        get :search, params: { max_time: 30 }, format: :json
+        json_response = JSON.parse(response.body)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
+      end
+    end
+
+    context "with category filter" do
+      it "applies category filter" do
+        get :search, params: { category: "dessert" }, format: :json
+        json_response = JSON.parse(response.body)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
+      end
+    end
+
+    context "with multiple filters" do
+      it "applies all filters together" do
+        get :search, params: {
+          ingredient_ids: [ salt.id ],
+          name: "cake",
+          min_rating: 4.0,
+          max_time: 30,
+          category: "dessert"
+        }, format: :json
+        json_response = JSON.parse(response.body)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
       end
     end
 
     context "with empty ingredient_ids" do
-      it "returns empty results" do
-        get :match_ingredients, params: { ingredient_ids: [] }, format: :json
+      it "returns all recipes when no ingredient filter" do
+        get :search, params: { ingredient_ids: [] }, format: :json
         json_response = JSON.parse(response.body)
-        
-        expect(json_response["recipes"]).to be_empty
-        expect(json_response["pagination"]["total_count"]).to eq(0)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
       end
 
       it "returns successful response" do
-        get :match_ingredients, params: { ingredient_ids: [] }, format: :json
+        get :search, params: { ingredient_ids: [] }, format: :json
         expect(response).to have_http_status(:success)
       end
     end
 
     context "with no ingredient_ids parameter" do
-      it "returns empty results" do
-        get :match_ingredients, format: :json
+      it "returns top-rated recipes" do
+        get :search, format: :json
         json_response = JSON.parse(response.body)
-        
-        expect(json_response["recipes"]).to be_empty
-        expect(json_response["pagination"]["total_count"]).to eq(0)
+
+        expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
+        expect(json_response["recipes"]).to be_an(Array)
       end
     end
 
     context "with HTML format request" do
       it "returns not acceptable" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id] }
+        get :search, params: { ingredient_ids: [ salt.id ] }
         expect(response).to have_http_status(:not_acceptable)
       end
     end
 
     context "with edge cases" do
       it "handles non-existent ingredient IDs" do
-        get :match_ingredients, params: { ingredient_ids: [999999] }, format: :json
+        get :search, params: { ingredient_ids: [ 999999 ] }, format: :json
         json_response = JSON.parse(response.body)
-        
-        expect(json_response["recipes"]).to be_empty
+
         expect(response).to have_http_status(:success)
+        expect(json_response).to have_key("recipes")
       end
 
       it "handles invalid page parameter" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id], page: "invalid" }, format: :json
+        get :search, params: { ingredient_ids: [ salt.id ], page: "invalid" }, format: :json
         expect(response).to have_http_status(:success)
       end
 
       it "handles very large page numbers" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id], page: 999999 }, format: :json
+        get :search, params: { ingredient_ids: [ salt.id ], page: 999999 }, format: :json
         expect(response).to have_http_status(:success)
       end
     end
 
     context "with multiple ingredient IDs" do
-      it "finds recipes matching any of the ingredients" do
-        get :match_ingredients, params: { ingredient_ids: [salt.id, sugar.id] }, format: :json
+      it "finds recipes matching ingredients" do
+        get :search, params: { ingredient_ids: [ salt.id, sugar.id ] }, format: :json
         json_response = JSON.parse(response.body)
-        
+
+        expect(response).to have_http_status(:success)
         expect(json_response["recipes"]).not_to be_empty
         recipe_names = json_response["recipes"].map { |r| r["name"] }
         expect(recipe_names).to include("Test Cake")

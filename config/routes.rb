@@ -1,8 +1,7 @@
 Rails.application.routes.draw do
   root "recipes#index"
 
-  get "recipes/match_ingredients", to: "recipes#match_ingredients"
-
+  get "recipes/search", to: "recipes#search"
   get "ingredients/search", to: "ingredients#search"
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

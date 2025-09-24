@@ -1,43 +1,147 @@
-<div class="max-w-4xl mx-auto p-6">
-  <h1 class="text-4xl font-bold text-center mb-2">Recipster</h1>
-  <p class="text-center text-gray-600 mb-8 italic">What recipes can you cook with ingredients you have at home?</p>
+<div class="p-4">
+  <h1 class="text-4xl font-bold text-center mb-1">Recipster</h1>
+  <p class="text-center text-gray-600 mb-6 italic">What recipes can you cook with ingredients you have at home?</p>
 
-  <div class="bg-white rounded-lg shadow-lg p-6 w-[800px] mx-auto" data-controller="ingredient-search" data-ingredient-search-url-value="/ingredients/search">
-    <!-- Search Input -->
-    <div class="mb-6 relative">
-      <input
-        type="search"
-        placeholder="Enter ingredients..."
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-    </div>
+  <!-- Recipe Search Form -->
+  <div class="max-w-2xl mx-auto mb-8">
+    <form id="recipe-search-form" class="relative">
+      <div class="relative">
+        <input
+          type="text"
+          id="recipe-name-search"
+          placeholder="Search for recipes by name..."
+          class="w-full px-4 py-3 pl-12 pr-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+        >
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <button
+          type="submit"
+          class="absolute inset-y-0 right-0 px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors"
+        >
+          Search
+        </button>
+      </div>
+    </form>
+  </div>
 
-    <!-- Selected Ingredients -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold mb-2">Selected Ingredients:</h3>
-      <ul id="ingredients-list" class="flex flex-wrap gap-2 min-h-[50px] p-2 bg-gray-50 rounded-lg">
-        <!-- Ingredients will be added here -->
-      </ul>
-    </div>
+  <div class="flex gap-6" data-controller="ingredient-search" data-ingredient-search-url-value="/ingredients/search">
+    <!-- Sidebar with Filters -->
+    <div class="w-80 bg-white rounded-lg shadow-lg p-6 h-fit">
+      <h2 class="text-xl font-semibold mb-6">Filters</h2>
 
-    <!-- Action Buttons -->
-    <div class="flex gap-4 mb-6">
+      <!-- Ingredients Filter -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3">Ingredients</h3>
+        <div class="relative mb-4">
+          <input
+            type="search"
+            placeholder="Add an ingredient..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+        </div>
+
+        <!-- Selected Ingredients -->
+        <div class="mb-4">
+          <h4 class="text-sm font-medium mb-2 text-gray-700">Selected Ingredients:</h4>
+          <ul id="ingredients-list" class="flex flex-wrap gap-2 min-h-[50px] p-2 bg-gray-50 rounded-lg">
+            <!-- Ingredients will be added here -->
+          </ul>
+        </div>
+
+        <button
+          id="clear-ingredients"
+          class="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+        >
+          Clear All Ingredients
+        </button>
+      </div>
+
+      <!-- Cooking Time Filter -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3">Cooking Time</h3>
+        <div class="space-y-2">
+          <label class="flex items-center">
+            <input type="radio" name="cooking-time" value="15" class="mr-2">
+            <span class="text-sm">Under 15 minutes</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="cooking-time" value="30" class="mr-2">
+            <span class="text-sm">Under 30 minutes</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="cooking-time" value="60" class="mr-2">
+            <span class="text-sm">Under 1 hour</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="cooking-time" value="" class="mr-2">
+            <span class="text-sm">Any time</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Rating Filter -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3">Minimum Rating</h3>
+        <div class="space-y-2">
+          <label class="flex items-center">
+            <input type="radio" name="rating" value="4.5" class="mr-2">
+            <span class="text-sm">4.5+ stars</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="rating" value="4.0" class="mr-2">
+            <span class="text-sm">4.0+ stars</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="rating" value="3.5" class="mr-2">
+            <span class="text-sm">3.5+ stars</span>
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="rating" value="" class="mr-2">
+            <span class="text-sm">Any rating</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3">Category</h3>
+        <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <option value="">All Categories</option>
+          <option value="main-course">Main Course</option>
+          <option value="appetizer">Appetizer</option>
+          <option value="dessert">Dessert</option>
+          <option value="side-dish">Side Dish</option>
+          <option value="breakfast">Breakfast</option>
+          <option value="lunch">Lunch</option>
+          <option value="dinner">Dinner</option>
+          <option value="snack">Snack</option>
+          <option value="beverage">Beverage</option>
+        </select>
+      </div>
+
+      <!-- Apply Filters Button -->
       <button
-        id="clear-ingredients"
-        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+        id="apply-filters"
+        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
       >
-        Clear All
+        Apply Filters
       </button>
     </div>
 
-    <!-- Messages -->
-    <div id="messages" class="mb-4">
-      <!-- Messages will appear here -->
-    </div>
+    <!-- Main Content Area -->
+    <div class="flex-1">
+      <!-- Messages -->
+      <div id="messages" class="mb-4">
+        <!-- Messages will appear here -->
+      </div>
 
-    <!-- Recipe Results -->
-    <div id="recipes-section" style="display: none;">
-      <!-- Recipe results will appear here -->
+      <!-- Recipe Results -->
+      <div id="recipes-section" style="display: none;">
+        <!-- Recipe results will appear here -->
+      </div>
     </div>
   </div>
 </div>
