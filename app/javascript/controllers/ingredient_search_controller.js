@@ -26,6 +26,9 @@ export default class extends Controller {
     this.recipesSection = document.getElementById('recipes-section')
     this.messagesDiv = document.getElementById('messages')
 
+    // Initialize keyboard navigation state
+    this.selectedIndex = -1
+
     // Simple debounced search
     this.searchTimeout = null
     this.input.addEventListener('input', (e) => {
@@ -35,11 +38,52 @@ export default class extends Controller {
       }, 300)
     })
 
-    // Handle Esc key to close autocomplete
+    // Handle keyboard navigation
     this.input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.hideSuggestions()
-        this.input.blur() // Remove focus from input
+      const dropdown = document.querySelector('.suggestions-dropdown')
+      const items = dropdown ? dropdown.querySelectorAll('.suggestion-item') : []
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          if (items.length > 0) {
+            this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1)
+            this.highlightItem(items)
+          }
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          if (items.length > 0) {
+            this.selectedIndex = Math.max(this.selectedIndex - 1, -1)
+            this.highlightItem(items)
+          }
+          break
+        case 'Enter':
+          e.preventDefault()
+          const inputValue = this.input.value.trim()
+
+          if (this.selectedIndex >= 0 && this.selectedIndex < items.length) {
+            // User has selected an item with keyboard navigation
+            items[this.selectedIndex].click()
+          } else if (inputValue) {
+            // Check if the input text exactly matches any of the current suggestions
+            const exactMatch = Array.from(items).find(item =>
+              item.textContent.toLowerCase() === inputValue.toLowerCase()
+            )
+
+            if (exactMatch) {
+              // Found exact match - add the ingredient
+              exactMatch.click()
+            } else {
+              // No exact match found - perform a search to check if ingredient exists
+              this.handleEnterWithNoSelection(inputValue)
+            }
+          }
+          break
+        case 'Escape':
+          this.hideSuggestions()
+          this.input.blur()
+          break
       }
     })
 
@@ -124,12 +168,30 @@ export default class extends Controller {
   }
 
   async searchIngredients(query) {
-    if (query.length < 1) return
+    // Only clear error messages when user is actively typing (not when input is cleared programmatically)
+    if (query.length > 0) {
+      this.clearIngredientErrorMessage()
+    }
+
+    if (query.length < 1) {
+      this.hideSuggestions()
+      return
+    }
 
     try {
       const response = await fetch(`${this.urlValue}?q=${encodeURIComponent(query)}`)
       const ingredients = await response.json()
       this.showSuggestions(ingredients)
+
+      // Auto-highlight first item if suggestions are shown
+      if (ingredients.length > 0) {
+        this.selectedIndex = 0
+        const dropdown = document.querySelector('.suggestions-dropdown')
+        if (dropdown) {
+          const items = dropdown.querySelectorAll('.suggestion-item')
+          this.highlightItem(items)
+        }
+      }
     } catch (error) {
       console.error('Search error:', error)
     }
@@ -144,13 +206,16 @@ export default class extends Controller {
 
     if (ingredients.length === 0) return
 
+    // Reset selected index when showing new suggestions
+    this.selectedIndex = -1
+
     // Create suggestions dropdown
     const dropdown = document.createElement('div')
     dropdown.className = 'suggestions-dropdown w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto'
 
-    ingredients.forEach(ingredient => {
+    ingredients.forEach((ingredient, index) => {
       const item = document.createElement('div')
-      item.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0'
+      item.className = 'suggestion-item px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0'
       item.textContent = ingredient.name
       item.dataset.ingredientId = ingredient.id
       item.dataset.ingredientName = ingredient.name
@@ -159,6 +224,12 @@ export default class extends Controller {
         this.addIngredient(ingredient.id, ingredient.name)
         this.input.value = ''
         dropdown.remove()
+      })
+
+      // Add mouse hover effects
+      item.addEventListener('mouseenter', () => {
+        this.selectedIndex = index
+        this.highlightItem(dropdown.querySelectorAll('.suggestion-item'))
       })
 
       dropdown.appendChild(item)
@@ -174,6 +245,61 @@ export default class extends Controller {
     if (existingSuggestions) {
       existingSuggestions.remove()
     }
+    this.selectedIndex = -1
+  }
+
+  highlightItem(items) {
+    items.forEach((item, index) => {
+      if (index === this.selectedIndex) {
+        item.classList.add('bg-blue-100', 'text-blue-800')
+        item.classList.remove('hover:bg-gray-100')
+      } else {
+        item.classList.remove('bg-blue-100', 'text-blue-800')
+        item.classList.add('hover:bg-gray-100')
+      }
+    })
+  }
+
+  async handleEnterWithNoSelection(inputValue) {
+    try {
+      // Perform a search to check if the ingredient exists
+      const response = await fetch(`${this.urlValue}?q=${encodeURIComponent(inputValue)}`)
+      const ingredients = await response.json()
+
+      // Look for an exact match (case-insensitive)
+      const exactMatch = ingredients.find(ingredient =>
+        ingredient.name.toLowerCase() === inputValue.toLowerCase()
+      )
+
+      if (exactMatch) {
+        // Found exact match - add the ingredient
+        this.addIngredient(exactMatch.id, exactMatch.name)
+        this.input.value = ''
+        this.hideSuggestions()
+      } else {
+        // No exact match found - show error message
+        this.handleIngredientNotFound(inputValue)
+      }
+    } catch (error) {
+      console.error('Error checking ingredient:', error)
+      this.handleIngredientNotFound(inputValue)
+    }
+  }
+
+  handleIngredientNotFound(inputValue) {
+    // Hide any existing suggestions
+    this.hideSuggestions()
+
+    // Show not found message under the ingredient input field
+    this.showIngredientErrorMessage(`"${inputValue}" not found`)
+
+    // Clear the input field after showing the message
+    this.input.value = ''
+
+    // Clear the message after 3 seconds
+    setTimeout(() => {
+      this.clearIngredientErrorMessage()
+    }, 3000)
   }
 
   addIngredient(id, name) {
@@ -195,6 +321,7 @@ export default class extends Controller {
 
     this.ingredientsList.appendChild(chip)
     this.clearMessages()
+    this.clearIngredientErrorMessage() // Clear any ingredient-specific error messages
 
     // Automatically search for recipes when ingredient is added
     this.searchRecipes()
@@ -554,6 +681,27 @@ export default class extends Controller {
 
   clearMessages() {
     this.messagesDiv.innerHTML = ''
+  }
+
+  showIngredientErrorMessage(message) {
+    // Remove any existing error message
+    this.clearIngredientErrorMessage()
+
+    // Create error message element
+    const errorDiv = document.createElement('div')
+    errorDiv.className = 'ingredient-error-message mt-2 p-2 bg-red-100 text-red-800 text-sm rounded-lg border border-red-200'
+    errorDiv.textContent = message
+
+    // Insert the error message after the ingredient input field
+    const inputContainer = this.input.parentNode
+    inputContainer.appendChild(errorDiv)
+  }
+
+  clearIngredientErrorMessage() {
+    const existingError = this.input.parentNode.querySelector('.ingredient-error-message')
+    if (existingError) {
+      existingError.remove()
+    }
   }
 
   getFilterValues() {
