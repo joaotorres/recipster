@@ -555,7 +555,13 @@ export default class extends Controller {
 
   displayRecipes(recipes, pagination, isNewSearch = true) {
     if (recipes.length === 0 && isNewSearch) {
-      this.recipesSection.style.display = 'none'
+      // Show "No recipes found" message
+      this.recipesSection.style.display = 'block'
+      this.recipesSection.innerHTML = `
+        <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200">
+          No recipes found on your search.
+        </div>
+      `
       return
     }
 
