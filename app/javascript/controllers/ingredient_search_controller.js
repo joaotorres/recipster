@@ -16,8 +16,14 @@ export default class extends Controller {
     this.isLoading = false
     this.allRecipes = []
 
-    // Load top recipes on page load
-    this.loadTopRecipes()
+    // On page load, if any filters (including recipe name) are present, run a filtered search;
+    // otherwise load top recipes.
+    const hasInitialCriteria = this.hasSearchCriteria()
+    if (hasInitialCriteria) {
+      this.applyFilters()
+    } else {
+      this.loadTopRecipes()
+    }
   }
 
   setupAutocomplete() {
@@ -112,11 +118,11 @@ export default class extends Controller {
   }
 
   setupFilterForm() {
-    // Apply filters button
-    const applyFiltersBtn = document.getElementById('apply-filters')
-    if (applyFiltersBtn) {
-      applyFiltersBtn.addEventListener('click', () => {
-        this.applyFilters()
+    // Clear filters button
+    const clearFiltersBtn = document.getElementById('clear-filters')
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', () => {
+        this.clearFilters()
       })
     }
 
@@ -151,13 +157,12 @@ export default class extends Controller {
         this.applyFilters()
       })
 
-      // Auto-search as user types (with debounce)
-      let searchTimeout = null
-      searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout)
-        searchTimeout = setTimeout(() => {
+      // Handle Enter key press in the input field
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
           this.applyFilters()
-        }, 500) // 500ms debounce
+        }
       })
     }
   }
@@ -450,6 +455,35 @@ export default class extends Controller {
     if (this.input) {
       this.input.value = ''
     }
+  }
+
+  clearFilters() {
+    // Clear recipe name search
+    const recipeNameInput = document.getElementById('recipe-name-search')
+    if (recipeNameInput) {
+      recipeNameInput.value = ''
+    }
+
+    // Reset cooking time radio buttons
+    const cookingTimeRadios = document.querySelectorAll('input[name="cooking-time"]')
+    cookingTimeRadios.forEach(radio => {
+      radio.checked = false
+    })
+
+    // Reset rating radio buttons
+    const ratingRadios = document.querySelectorAll('input[name="rating"]')
+    ratingRadios.forEach(radio => {
+      radio.checked = false
+    })
+
+    // Reset category select
+    const categorySelect = document.querySelector('select')
+    if (categorySelect) {
+      categorySelect.selectedIndex = 0 // Select "All Categories"
+    }
+
+    // Apply filters after clearing (this will trigger the search with cleared filter values)
+    this.applyFilters()
   }
 
   async searchRecipes() {

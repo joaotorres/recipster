@@ -219,6 +219,24 @@ RSpec.describe RecipeSearchService do
         expect(recipe_names).not_to include("Test Salt Only")
       end
 
+      it "filters recipes by name with words out of order" do
+        service = described_class.new([], { name: "muffin banana" }, 1)
+        result = service.call
+
+        # Should find recipes that contain both "muffin" and "banana" regardless of order
+        expect(result[:recipes].length).to eq(0) # No recipes match this in our test data
+      end
+
+      it "filters recipes by name with multiple words" do
+        service = described_class.new([], { name: "test cake" }, 1)
+        result = service.call
+
+        expect(result[:recipes].length).to eq(2)
+        recipe_names = result[:recipes].map { |r| r[:name] }
+        expect(recipe_names).to include("Test Simple Cake", "Test Complex Cake")
+        expect(recipe_names).not_to include("Test Salt Only")
+      end
+
       it "does not order by rating when filters are applied" do
         service = described_class.new([], { name: "cake" }, 1)
         result = service.call

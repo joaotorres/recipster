@@ -52,7 +52,7 @@ class RecipeSearchService
       filtered_recipes = Recipe.where(id: recipe_ids)
 
       # Apply filters to the filtered recipes
-      filtered_recipes = filtered_recipes.where("LOWER(recipes.name) LIKE ?", "%#{@filters[:name].downcase}%") if @filters[:name].present?
+      filtered_recipes = apply_name_filter(filtered_recipes) if @filters[:name].present?
       filtered_recipes = filtered_recipes.where("LOWER(recipes.category) LIKE ?", "%#{@filters[:category].downcase}%") if @filters[:category].present?
       filtered_recipes = filtered_recipes.where("recipes.rating >= ?", @filters[:min_rating]) if @filters[:min_rating].present?
       filtered_recipes = filtered_recipes.where("(recipes.prep_time + recipes.cook_time) <= ?", @filters[:max_time]) if @filters[:max_time].present?
@@ -61,12 +61,23 @@ class RecipeSearchService
       query.where("recipes.id IN (?)", filtered_recipes.pluck(:id))
     else
       # Regular filtering for non-ingredient queries
-      query = query.where("LOWER(recipes.name) LIKE ?", "%#{@filters[:name].downcase}%") if @filters[:name].present?
+      query = apply_name_filter(query) if @filters[:name].present?
       query = query.where("LOWER(recipes.category) LIKE ?", "%#{@filters[:category].downcase}%") if @filters[:category].present?
       query = query.where("recipes.rating >= ?", @filters[:min_rating]) if @filters[:min_rating].present?
       query = query.where("(recipes.prep_time + recipes.cook_time) <= ?", @filters[:max_time]) if @filters[:max_time].present?
       query
     end
+  end
+
+  def apply_name_filter(query)
+    # Split search terms and require each word to be contained in the recipe name (order-agnostic)
+    terms = @filters[:name].downcase.split(/\s+/).uniq
+    terms.each do |term|
+      # Escape SQL wildcards to prevent injection
+      escaped = term.gsub("%", '\\%').gsub("_", '\\_')
+      query = query.where("LOWER(recipes.name) LIKE ? ESCAPE '\\'", "%#{escaped}%")
+    end
+    query
   end
 
   def handle_ingredient_matching_pagination(filtered_query)
