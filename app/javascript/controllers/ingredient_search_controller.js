@@ -803,14 +803,14 @@ export default class extends Controller {
   }
 
   hideCommonIngredient(ingredientName) {
-    const commonButton = document.querySelector(`[data-ingredient-name="${ingredientName}"]`)
+    const commonButton = document.querySelector(`.common-ingredient-btn[data-ingredient-name="${ingredientName}"]`)
     if (commonButton) {
       commonButton.style.display = 'none'
     }
   }
 
   showCommonIngredient(ingredientName) {
-    const commonButton = document.querySelector(`[data-ingredient-name="${ingredientName}"]`)
+    const commonButton = document.querySelector(`.common-ingredient-btn[data-ingredient-name="${ingredientName}"]`)
     if (commonButton) {
       commonButton.style.display = 'inline-flex'
     }
