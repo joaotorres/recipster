@@ -27,10 +27,24 @@
     </form>
   </div>
 
+
   <div class="flex gap-6" data-controller="ingredient-search" data-ingredient-search-url-value="/ingredients/search">
     <!-- Sidebar with Filters -->
     <div class="w-80 bg-white rounded-lg shadow-lg p-6 h-fit">
-      <h2 class="text-xl font-semibold mb-6">Filters</h2>
+      <!-- How to use (collapsible) -->
+      <details class="text-black mb-6">
+        <summary class="cursor-pointer select-none text-sm font-medium text-black">How to use</summary>
+        <div class="mt-2 space-y-2 text-sm leading-6">
+          <p>
+            Add the ingredients you have from the side bar or by clicking on missing ingredients on the recipes ingredients list to see all the recipes that include at least one of these ingredients. We already assume you have water, salt and pepper. You'll see the recipes you have all the ingredients for first, followed by the ones which you miss the least number of ingredients.
+          </p>
+          <p>
+            Filter recipes by name or using the other filters in the side bar. While no ingredients have been added the search takes into account all available recipes, but be aware that once ingredients are added the name search and other filters will filter recipes that contain at least one of these ingredients.
+          </p>
+        </div>
+      </details>
+
+      <h2 class="text-xl font-semibold mb-4">Filters</h2>
 
       <!-- Ingredients Filter -->
       <div class="mb-6">
